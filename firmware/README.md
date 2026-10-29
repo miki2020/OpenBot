@@ -34,6 +34,7 @@ Set `OPENBOT` to your robot body, and select a board it supports in the Arduino 
 | Ready-to-Run kit, 520 motors | `RTR_520` | | ✓ |
 | RC truck | `RC_CAR` | ✓ | |
 | OpenBot Lite | `LITE` | ✓ | |
+| OpenBot Lite Servo | `LITE_SERVO` | ✓ | |
 | Multi Terrain Vehicle | `MTV` | | ✓ |
 
 `DIY_ESP32` has been replaced by `DIY` with an ESP32 board selected.
@@ -51,6 +52,7 @@ Each body turns on the parts it normally has:
 | `DIY`, `PCB_V1`, `PCB_V2` | Voltage divider, indicators, sonar, front speed sensors |
 | `RTR_TT`, `RTR_TT2`, `RTR_520` | Voltage divider, indicators, sonar, bumper, front and back speed sensors, front, back and status LEDs |
 | `LITE` | Indicators |
+| `LITE_SERVO` | Indicators, sonar, battery voltage divider, two continuous-rotation servos; no wheel encoders by default |
 | `RC_CAR` | None |
 | `MTV` | Front, middle and back speed sensors |
 
@@ -69,6 +71,38 @@ In the settings, every part is set to the body's default, e.g. `#define HAS_SONA
 | `HAS_OLED` | OLED display |
 | `HAS_BLUETOOTH` | Bluetooth link to the phone (ESP32) |
 
+### LITE_SERVO drive configuration
+
+Set `OPENBOT LITE_SERVO` and select the Arduino Nano board. The configuration uses exactly two continuous-rotation servos, one for each drive side:
+
+The servo count is fixed in the firmware; no count setting is needed. The left and right sides receive independent commands from the existing Android app.
+
+Common settings for the servo hardware are:
+
+```cpp
+#define DRIVE_SERVO_NEUTRAL_US 1500
+#define DRIVE_SERVO_MIN_US 1100
+#define DRIVE_SERVO_MAX_US 1900
+#define DRIVE_SERVO_L_INVERT 0
+#define DRIVE_SERVO_R_INVERT 0
+```
+
+The default values keep the neutral pulse at 1500 µs and the command range within safe limits. If the servo rotates the wrong way, flip the relevant `*_INVERT` setting. Keep the servo power supply separate from the Arduino 5 V rail and share a common ground with the Nano.
+
+The Arduino app and serial protocol remain unchanged; the firmware still accepts the same `c<left>,<right>` drive commands. The generated servo pulse widths are neutral at zero command, increase for forward motion, and decrease for reverse motion. With no encoder hardware, wheel RPM and wheel odometry are unavailable by default, so precise autonomous navigation without additional sensors is not available.
+
+Default Nano pin assignments are:
+
+| Function | Nano pin |
+|---|---:|
+| Left servo signal | D9 |
+| Right servo signal | D10 |
+| Indicator LEDs | D4, D7 |
+| Sonar trigger / echo | D12 / D11 |
+| Battery divider output | A7 |
+
+Battery sensing defaults to a 3S 18650 pack: `VOLTAGE_LOW` 10.5 V (3 × 3.5 V) and `VOLTAGE_MAX` 12.6 V (3 × 4.2 V). `VOLTAGE_DIVIDER_FACTOR` defaults to 4, assuming a 30 kΩ upper resistor and 10 kΩ lower resistor. Use the actual installed resistor values and formula `(R1 + R2) / R2`; the divider must keep the Nano analog input below 5 V at the pack's maximum voltage. Do not connect the 3S pack directly to A7.
+
 ### Battery
 
 The app's battery gauge runs from `VOLTAGE_LOW` (empty) to `VOLTAGE_MAX` (full). They are set to the body's defaults; for a different battery, set them in the settings, for example `#define VOLTAGE_LOW 6.8f`:
@@ -81,6 +115,8 @@ The app's battery gauge runs from `VOLTAGE_LOW` (empty) to `VOLTAGE_MAX` (full).
 | 8 × AA | 8.0f | 12.0f |
 
 If your voltage divider differs from the body's, also set `VOLTAGE_DIVIDER_FACTOR` to (R1 + R2) / R2. `VOLTAGE_MIN` is the lowest voltage at which the motors still turn; the firmware only uses it in no phone mode.
+
+For `LITE_SERVO`, the default divider factor assumes 30 kΩ from battery positive to A7 and 10 kΩ from A7 to ground. This gives a 4:1 scale, so a fully charged 3S pack at 12.6 V produces 3.15 V at A7. The Nano's analog input must stay below 5 V; confirm the resistor values and measure the divided voltage before connecting the battery.
 
 ### Check the configuration
 

@@ -16,7 +16,7 @@
 // Dependencies: Install via "Tools --> Manage Libraries" (type library name in the search field)
 //  - Interrupts: PinChangeInterrupt by Nico Hood (read speed sensors and sonar)
 //  - OLED: Adafruit_SSD1306 & Adafruit_GFX (display vehicle status)
-//  - Servo: Built-In library by Michael Margolis (required for RC truck)
+//  - Servo: Built-In library by Michael Margolis (required for RC truck and LITE_SERVO)
 //  - Gamepad: Bluepad32 board package for ESP32 (only if HAS_GAMEPAD is 1, see below)
 // Contributors:
 //  - October 2020: OLED display support by Ingmar Stapel
@@ -43,9 +43,9 @@
 #else
 
 // 1. Robot body
-//    Arduino Nano: DIY, PCB_V1, PCB_V2, RTR_TT, RC_CAR, LITE
+//    Arduino Nano: DIY, PCB_V1, PCB_V2, RTR_TT, RC_CAR, LITE, LITE_SERVO
 //    ESP32:        DIY, RTR_TT2, RTR_520, MTV
-#define OPENBOT DIY
+#define OPENBOT LITE_SERVO
 
 // 2. Driving
 #define NO_PHONE_MODE 0  // drive without a phone; needs a sonar, else it drives straight ahead!
@@ -57,19 +57,19 @@
 // 3. Parts: set 1 (on) or 0 (off) if your robot differs from the standard body.
 //    DEFAULT_... keeps the body's default; the table shows the defaults.
 //
-//                              DIY  PCB_V1/V2  RTR_TT  RTR_TT2/520  LITE  RC_CAR  MTV
-//   HAS_VOLTAGE_DIVIDER         1       1        1          1        0      0      0
-//   HAS_INDICATORS              1       1        1          1        1      0      0
-//   HAS_SONAR                   1       1        1          1        0      0      0
-//   SONAR_MEDIAN                0       0        0          0        0      0      0
-//   HAS_BUMPER                  0       0        1          1        0      0      0
-//   HAS_SPEED_SENSORS_FRONT     1       1        1          1        0      0      1
-//   HAS_SPEED_SENSORS_BACK      0       0        1          1        0      0      1
-//   HAS_SPEED_SENSORS_MIDDLE    0       0        0          0        0      0      1
-//   HAS_LEDS_FRONT              0       0        1          1        0      0      0
-//   HAS_LEDS_BACK               0       0        1          1        0      0      0
-//   HAS_LEDS_STATUS             0       0        1          1        0      0      0
-//   HAS_OLED                    0       0        0          0        0      0      0
+//                              DIY  PCB_V1/V2  RTR_TT  RTR_TT2/520  LITE  LITE_SERVO  RC_CAR  MTV
+//   HAS_VOLTAGE_DIVIDER         1       1        1          1        0      1          0      0
+//   HAS_INDICATORS              1       1        1          1        1      1          0      0
+//   HAS_SONAR                   1       1        1          1        0      1          0      0
+//   SONAR_MEDIAN                0       0        0          0        0      0          0      0
+//   HAS_BUMPER                  0       0        1          1        0      0          0      0
+//   HAS_SPEED_SENSORS_FRONT     1       1        1          1        0      0          0      1
+//   HAS_SPEED_SENSORS_BACK      0       0        1          1        0      0          0      1
+//   HAS_SPEED_SENSORS_MIDDLE    0       0        0          0        0      0          0      1
+//   HAS_LEDS_FRONT              0       0        1          1        0      0          0      0
+//   HAS_LEDS_BACK               0       0        1          1        0      0          0      0
+//   HAS_LEDS_STATUS             0       0        1          1        0      0          0      0
+//   HAS_OLED                    0       0        0          0        0      0          0      0
 //   HAS_BLUETOOTH             on for the ESP32 bodies (link to the phone)
 
 #define HAS_VOLTAGE_DIVIDER DEFAULT_HAS_VOLTAGE_DIVIDER
@@ -87,7 +87,8 @@
 #define HAS_BLUETOOTH DEFAULT_HAS_BLUETOOTH
 
 // 4. Battery: empty / full voltage of the app's battery gauge, or the body's default
-//    Body defaults: 9.0 / 12.6, RC_CAR 6.4 / 8.4, LITE 4.5 / 5.0, MTV 20.0 / 24.0
+//    Body defaults: 9.0 / 12.6, RC_CAR 6.4 / 8.4, LITE 4.5 / 5.0,
+//    LITE_SERVO 10.5 / 12.6, MTV 20.0 / 24.0
 //    Other batteries, e.g.: 2S 6.8f / 8.4f, 6 x AA 6.0f / 9.0f, 8 x AA 8.0f / 12.0f
 #define VOLTAGE_LOW DEFAULT_VOLTAGE_LOW
 #define VOLTAGE_MAX DEFAULT_VOLTAGE_MAX
@@ -120,6 +121,7 @@
 #define RTR_TT 3     // Nano          Ready-to-Run with TT-motors
 #define RC_CAR 4     // Nano          RC truck prototypes
 #define LITE 5       // Nano          Smaller DIY version for education
+#define LITE_SERVO 9 // Nano          LITE with continuous-rotation servos
 #define RTR_TT2 6    // ESP32         Ready-to-Run with TT-motors
 #define RTR_520 7    // ESP32         Ready-to-Run with 520-motors
 #define MTV 8        // ESP32         Multi Terrain Vehicle
@@ -374,6 +376,47 @@ const int PIN_PWM_R2 = 10;
 const int PIN_LED_LI = 4;
 const int PIN_LED_RI = 7;
 
+//-------------------------LITE_SERVO-------------------//
+#elif (OPENBOT == LITE_SERVO)
+const String robot_type = "LITE_SERVO";
+#if (MCU != NANO)
+#error "LITE_SERVO needs an Arduino Nano board."
+#endif
+#include <Servo.h>
+#define DEFAULT_HAS_VOLTAGE_DIVIDER 1
+#define DEFAULT_VOLTAGE_DIVIDER_FACTOR ((0.0f + 10.0f) / 10.0f)
+#define DEFAULT_VOLTAGE_MIN 9.0f
+#define DEFAULT_VOLTAGE_LOW 10.5f
+#define DEFAULT_VOLTAGE_MAX 12.6f
+const float ADC_FACTOR = 5.0 / 1023;
+#define DEFAULT_HAS_INDICATORS 1
+#define DEFAULT_HAS_SONAR 1
+#ifndef DRIVE_SERVO_NEUTRAL_US
+#define DRIVE_SERVO_NEUTRAL_US 1500
+#endif
+#ifndef DRIVE_SERVO_MIN_US
+#define DRIVE_SERVO_MIN_US 1100
+#endif
+#ifndef DRIVE_SERVO_MAX_US
+#define DRIVE_SERVO_MAX_US 1900
+#endif
+#ifndef DRIVE_SERVO_L_INVERT
+#define DRIVE_SERVO_L_INVERT 0
+#endif
+#ifndef DRIVE_SERVO_R_INVERT
+#define DRIVE_SERVO_R_INVERT 1
+#endif
+#if (DRIVE_SERVO_MIN_US >= DRIVE_SERVO_NEUTRAL_US || DRIVE_SERVO_MAX_US <= DRIVE_SERVO_NEUTRAL_US)
+#error "LITE_SERVO servo pulse limits must straddle the neutral pulse."
+#endif
+const int PIN_SERVO_L = 9;
+const int PIN_SERVO_R = 10;
+const int PIN_LED_LI = 4;
+const int PIN_LED_RI = 7;
+const int PIN_VIN = A7;
+const int PIN_TRIGGER = 12;
+const int PIN_ECHO = 11;
+
 //-------------------------RTR_TT2----------------------//
 #elif (OPENBOT == RTR_TT2)
 const String robot_type = "RTR_TT2";
@@ -584,6 +627,8 @@ constexpr PinUse PIN_USES[] = {
   { PIN_PWM_T, 'M' }, { PIN_PWM_S, 'M' },
 #elif (OPENBOT == MTV)
   { PIN_PWM_L, 'M' }, { PIN_PWM_R, 'M' }, { PIN_DIR_L, 'M' }, { PIN_DIR_R, 'M' },
+#elif (OPENBOT == LITE_SERVO)
+  { PIN_SERVO_L, 'M' }, { PIN_SERVO_R, 'M' },
 #elif (MCU == NANO)
   { PIN_PWM_L1, 'M' }, { PIN_PWM_L2, 'M' }, { PIN_PWM_R1, 'M' }, { PIN_PWM_R2, 'M' },
 #else
@@ -821,6 +866,11 @@ int ctrl_left = 0;
 int ctrl_right = 0;
 bool gamepad_driving = false;
 
+#if (OPENBOT == LITE_SERVO)
+Servo drive_servo_left;
+Servo drive_servo_right;
+#endif
+
 #if (HAS_VOLTAGE_DIVIDER)
 // Voltage measurement
 unsigned int vin_counter = 0;
@@ -913,6 +963,11 @@ void setup() {
   // Attach the ESC and SERVO
   ESC.attach(PIN_PWM_T, 1000, 2000);    // (pin, min pulse width, max pulse width in microseconds)
   SERVO.attach(PIN_PWM_S, 1000, 2000);  // (pin, min pulse width, max pulse width in microseconds)
+#elif (OPENBOT == LITE_SERVO)
+  drive_servo_left.attach(PIN_SERVO_L, DRIVE_SERVO_MIN_US, DRIVE_SERVO_MAX_US);
+  drive_servo_right.attach(PIN_SERVO_R, DRIVE_SERVO_MIN_US, DRIVE_SERVO_MAX_US);
+  stop_left_motors();
+  stop_right_motors();
 #elif (OPENBOT == MTV)
   ledcSetup(LHS_PWM_OUT, FREQ, RES);
   ledcSetup(RHS_PWM_OUT, FREQ, RES);
@@ -1345,6 +1400,9 @@ void update_vehicle() {
 #elif (OPENBOT == MTV)
   update_left_motors_mtv();
   update_right_motors_mtv();
+#elif (OPENBOT == LITE_SERVO)
+  update_left_motors();
+  update_right_motors();
 #else
   update_left_motors();
   update_right_motors();
@@ -1421,6 +1479,54 @@ void stop_right_motors_mtv() {
 void coast_right_motors_mtv() {
   ledcWrite(RHS_PWM_OUT, 0);
   digitalWrite(PIN_DIR_R, LOW);
+}
+
+#elif (OPENBOT == LITE_SERVO)
+void apply_servo_command(Servo &servo, int command, bool invert) {
+  int mapped = invert ? -command : command;
+  if (mapped == 0) {
+    servo.writeMicroseconds(DRIVE_SERVO_NEUTRAL_US);
+    return;
+  }
+  int pulse;
+  if (mapped > 0) {
+    pulse = DRIVE_SERVO_NEUTRAL_US + map(mapped, 0, 255, 0, DRIVE_SERVO_MAX_US - DRIVE_SERVO_NEUTRAL_US);
+  } else {
+    pulse = DRIVE_SERVO_NEUTRAL_US - map(-mapped, 0, 255, 0, DRIVE_SERVO_NEUTRAL_US - DRIVE_SERVO_MIN_US);
+  }
+  servo.writeMicroseconds(constrain(pulse, DRIVE_SERVO_MIN_US, DRIVE_SERVO_MAX_US));
+}
+
+void set_left_servo_drive(int command) {
+  apply_servo_command(drive_servo_left, command, DRIVE_SERVO_L_INVERT);
+}
+
+void set_right_servo_drive(int command) {
+  apply_servo_command(drive_servo_right, command, DRIVE_SERVO_R_INVERT);
+}
+
+void update_left_motors() {
+  set_left_servo_drive(ctrl_left);
+}
+
+void stop_left_motors() {
+  set_left_servo_drive(0);
+}
+
+void coast_left_motors() {
+  set_left_servo_drive(0);
+}
+
+void update_right_motors() {
+  set_right_servo_drive(ctrl_right);
+}
+
+void stop_right_motors() {
+  set_right_servo_drive(0);
+}
+
+void coast_right_motors() {
+  set_right_servo_drive(0);
 }
 
 #else
